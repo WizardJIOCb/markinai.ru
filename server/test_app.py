@@ -194,6 +194,38 @@ class CMSTest(unittest.TestCase):
             self.assertFalse(converted.getexif())
         response.close()
 
+    def test_jpeg_with_mpf_uses_primary_photo_not_auxiliary_frame(self):
+        self.login()
+        photo = Image.new('RGB', (80, 120), (220, 30, 40))
+        auxiliary = Image.new('RGB', (20, 30), (100, 100, 100))
+        exif = Image.Exif(); exif[274] = 6
+        stream = io.BytesIO()
+        photo.save(stream, 'MPO', save_all=True, append_images=[auxiliary], exif=exif)
+        payload = stream.getvalue()
+        with Image.open(io.BytesIO(payload)) as decoded:
+            self.assertEqual(decoded.format, 'MPO')
+            self.assertEqual(decoded.n_frames, 2)
+        result = self.client.post('/api/admin/upload', data={'file':(io.BytesIO(payload), 'IMG_6573.jpeg')}, headers=self.csrf)
+        self.assertEqual(result.status_code, 201, result.json)
+        response = self.client.get(result.json['url'])
+        with Image.open(io.BytesIO(response.data)) as converted:
+            self.assertEqual(converted.format, 'WEBP')
+            self.assertEqual(converted.size, (120, 80))
+            red, green, blue = converted.getpixel((60, 40))
+            self.assertGreater(red, green + 100)
+            self.assertFalse(converted.getexif())
+            self.assertEqual(getattr(converted, 'n_frames', 1), 1)
+        response.close()
+
+    def test_unsupported_photo_reports_actual_format_not_filename(self):
+        self.login()
+        stream = io.BytesIO()
+        Image.new('RGB', (20, 30)).save(stream, 'TIFF')
+        stream.seek(0)
+        result = self.client.post('/api/admin/upload', data={'file':(stream, 'renamed.jpeg')}, headers=self.csrf)
+        self.assertEqual(result.status_code, 400)
+        self.assertIn('TIFF', result.json['error'])
+
 
 if __name__ == '__main__':
     unittest.main()

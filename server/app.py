@@ -446,8 +446,11 @@ def upload():
     file.stream.seek(0)
     try:
         with Image.open(file.stream) as source:
-            if source.format not in ('JPEG', 'PNG', 'WEBP', 'HEIF'):
-                fail('Поддерживаются JPEG, PNG, WebP и HEIC/HEIF.')
+            # JPEG's MPF extension is identified as MPO, even with a .jpeg name.
+            # Its first frame is the primary photo; auxiliary images are discarded.
+            if source.format not in ('JPEG', 'MPO', 'PNG', 'WEBP', 'HEIF'):
+                fail(f'Файл распознан как {source.format or "неизвестный формат"}. Выберите JPEG, PNG, WebP или HEIC/HEIF.')
+            source.seek(0)
             if source.width * source.height > Image.MAX_IMAGE_PIXELS:
                 fail('Фотография слишком большая. Максимум 24 мегапикселя.')
             picture = ImageOps.exif_transpose(source)
