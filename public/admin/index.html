@@ -34,7 +34,7 @@
       <main id="editor" tabindex="-1"></main>
     </div>
   </div>
-  <dialog id="media-dialog" aria-labelledby="media-title"><div class="dialog-heading"><div><p class="eyebrow">Библиотека фотографий</p><h2 id="media-title">Выберите фотографию</h2></div><button class="secondary" data-close="media-dialog" aria-label="Закрыть фотографии">Закрыть</button></div><p>JPEG, PNG или WebP до 12 МБ и 24 мегапикселей. Фото автоматически уменьшается и очищается от метаданных.</p><label class="upload">Загрузить новую фотографию<input id="upload" type="file" accept="image/jpeg,image/png,image/webp"></label><p id="media-status" role="status"></p><div id="media-grid" class="media-grid"></div></dialog>
+  <dialog id="media-dialog" aria-labelledby="media-title"><div class="dialog-heading"><div><p class="eyebrow">Библиотека фотографий</p><h2 id="media-title">Выберите фотографию</h2></div><button class="secondary" data-close="media-dialog" aria-label="Закрыть фотографии">Закрыть</button></div><p>JPEG, PNG, WebP и фото iPhone HEIC/HEIF до 12 МБ и 24 мегапикселей. Фото уменьшается и очищается от метаданных. Загруженные фото доступны и с телефона, и с компьютера.</p><label class="upload">Загрузить фотографии<input id="upload" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"></label><p id="media-status" role="status" aria-live="polite"></p><div id="media-grid" class="media-grid"></div></dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title"></h2><p id="confirm-text"></p><div class="actions"><button id="confirm-yes">Продолжить</button><button class="secondary" data-close="confirm-dialog">Отмена</button></div></dialog>
 </body>
 </html>

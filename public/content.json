@@ -1,85 +1,4 @@
 {
-  "products": [
-    {
-      "id": "bridal",
-      "name": "Цветочная история",
-      "image": "/assets/bridal.webp",
-      "category": "Серьги",
-      "detail": "Цветы и речной жемчуг",
-      "description": "Цветочные серьги из холодного фарфора с речным жемчугом. Нежный акцент для особенного дня.",
-      "types": [
-        "earrings",
-        "wedding"
-      ],
-      "source": "https://t.me/farfforija/555",
-      "visible": true
-    },
-    {
-      "id": "rose",
-      "name": "Винтажная роза",
-      "image": "/assets/rose.webp",
-      "category": "Серьги",
-      "detail": "Винтажное настроение",
-      "description": "Рельефная роза в винтажном обрамлении. Работа из авторской серии Ирины «Винтажная роза».",
-      "types": [
-        "earrings"
-      ],
-      "source": "https://t.me/farfforija/561",
-      "visible": true
-    },
-    {
-      "id": "fox",
-      "name": "Лисички",
-      "image": "/assets/fox.webp",
-      "category": "Серьги",
-      "detail": "Немного доброй иронии",
-      "description": "Рыжие лисички, которые добавляют образу тепла и немного игривости.",
-      "types": [
-        "earrings"
-      ],
-      "source": "https://t.me/farfforija/515",
-      "visible": true
-    },
-    {
-      "id": "cross",
-      "name": "Мальтийские кресты",
-      "image": "/assets/cross.webp",
-      "category": "Серьги",
-      "detail": "Выразительная форма",
-      "description": "Декоративные серьги с мотивом мальтийского креста. В авторском канале представлены разные цветовые варианты.",
-      "types": [
-        "earrings"
-      ],
-      "source": "https://t.me/farfforija/534",
-      "visible": true
-    },
-    {
-      "id": "matryoshka",
-      "name": "Матрёшка",
-      "image": "/assets/matryoshka.webp",
-      "category": "Подвеска",
-      "detail": "Русские мотивы",
-      "description": "Маленькая матрёшка как самостоятельное украшение. Деталь с узнаваемым характером.",
-      "types": [
-        "pendants"
-      ],
-      "source": "https://t.me/farfforija/524",
-      "visible": true
-    },
-    {
-      "id": "insects",
-      "name": "Жуки и мухи",
-      "image": "/assets/insects.webp",
-      "category": "Серьги",
-      "detail": "Неожиданный природный мотив",
-      "description": "Неожиданный природный мотив в тёмном цвете. Для тех, кому нравятся необычные акценты.",
-      "types": [
-        "earrings"
-      ],
-      "source": "https://t.me/farfforija/558",
-      "visible": true
-    }
-  ],
   "sections": {
     "heroTitle": "Украшения,\nв которых\nузнаёте себя.",
     "heroDescription": "Авторские серьги и подвески Ирины Маркиной. Цветочные мотивы, винтажное настроение и детали с характером.",
@@ -117,6 +36,115 @@
     "instagram": "https://www.instagram.com/iramarkina8/",
     "footerText": "Авторские украшения.\nЛичные истории."
   },
+  "products": [
+    {
+      "id": "bridal",
+      "name": "Цветочная история",
+      "image": "/assets/bridal.webp",
+      "category": "Серьги",
+      "detail": "Цветы и речной жемчуг",
+      "description": "Цветочные серьги из холодного фарфора с речным жемчугом. Нежный акцент для особенного дня.",
+      "source": "https://t.me/farfforija/555",
+      "types": [
+        "earrings",
+        "wedding"
+      ],
+      "visible": true,
+      "images": [
+        "/assets/bridal.webp",
+        "/assets/channel-555-1.webp",
+        "/assets/channel-555-2.webp"
+      ]
+    },
+    {
+      "id": "rose",
+      "name": "Винтажная роза",
+      "image": "/assets/rose.webp",
+      "category": "Серьги",
+      "detail": "Винтажное настроение",
+      "description": "Рельефная роза в винтажном обрамлении. Работа из авторской серии Ирины «Винтажная роза».",
+      "source": "https://t.me/farfforija/561",
+      "types": [
+        "earrings"
+      ],
+      "visible": true,
+      "images": [
+        "/assets/rose.webp",
+        "/assets/channel-561-1.webp",
+        "/assets/channel-561-2.webp"
+      ]
+    },
+    {
+      "id": "fox",
+      "name": "Лисички",
+      "image": "/assets/fox.webp",
+      "category": "Серьги",
+      "detail": "Немного доброй иронии",
+      "description": "Рыжие лисички, которые добавляют образу тепла и немного игривости.",
+      "source": "https://t.me/farfforija/515",
+      "types": [
+        "earrings"
+      ],
+      "visible": true,
+      "images": [
+        "/assets/fox.webp",
+        "/assets/channel-515-1.webp",
+        "/assets/channel-515-2.webp"
+      ]
+    },
+    {
+      "id": "cross",
+      "name": "Мальтийские кресты",
+      "image": "/assets/cross.webp",
+      "category": "Серьги",
+      "detail": "Выразительная форма",
+      "description": "Декоративные серьги с мотивом мальтийского креста. В авторском канале представлены разные цветовые варианты.",
+      "source": "https://t.me/farfforija/534",
+      "types": [
+        "earrings"
+      ],
+      "visible": true,
+      "images": [
+        "/assets/cross.webp",
+        "/assets/channel-534-1.webp",
+        "/assets/channel-534-2.webp"
+      ]
+    },
+    {
+      "id": "matryoshka",
+      "name": "Матрёшка",
+      "image": "/assets/matryoshka.webp",
+      "category": "Подвеска",
+      "detail": "Русские мотивы",
+      "description": "Маленькая матрёшка как самостоятельное украшение. Деталь с узнаваемым характером.",
+      "source": "https://t.me/farfforija/524",
+      "types": [
+        "pendants"
+      ],
+      "visible": true,
+      "images": [
+        "/assets/matryoshka.webp"
+      ]
+    },
+    {
+      "id": "insects",
+      "name": "Жуки и мухи",
+      "image": "/assets/insects.webp",
+      "category": "Серьги",
+      "detail": "Неожиданный природный мотив",
+      "description": "Неожиданный природный мотив в тёмном цвете. Для тех, кому нравятся необычные акценты.",
+      "source": "https://t.me/farfforija/558",
+      "types": [
+        "earrings"
+      ],
+      "visible": true,
+      "images": [
+        "/assets/insects.webp",
+        "/assets/channel-558-1.webp",
+        "/assets/channel-558-2.webp"
+      ]
+    }
+  ],
   "faq": [
     {
       "question": "Что можно заказать?",
@@ -175,6 +203,166 @@
       "image": "/assets/rose.webp",
       "detailImage": "/assets/rose.webp",
       "source": "https://t.me/farfforija/561"
+    }
+  ],
+  "reviews": [
+    {
+      "id": "review-509",
+      "title": "Фото и тёплые слова",
+      "text": "Еще одна прекрасная владелица сережек! Спасибо за фото и отзыв!",
+      "images": [
+        "/assets/channel-509-1.webp",
+        "/assets/channel-509-0.webp"
+      ],
+      "source": "https://t.me/farfforija/509",
+      "visible": true
+    },
+    {
+      "id": "review-481",
+      "title": "Винтаж в новом образе",
+      "text": "Еще один отзыв от молодежи))) … винтаж!! Особенно приятно, когда девочки выбирают такие сложные вещи!",
+      "images": [
+        "/assets/channel-481-1.webp",
+        "/assets/channel-481-2.webp",
+        "/assets/channel-481-0.webp"
+      ],
+      "source": "https://t.me/farfforija/481",
+      "visible": true
+    },
+    {
+      "id": "review-467",
+      "title": "Украшения собираются в комплект",
+      "text": "И вновь - очаровательная покупательница, с прекрасным вкусом - сложился неожиданный комплект серьги и кот в подвеске да и кольцо- ромашка - вписалось идеально!!!",
+      "images": [
+        "/assets/channel-467-0.webp",
+        "/assets/channel-467-1.webp",
+        "/assets/channel-467-2.webp",
+        "/assets/channel-467-3.webp"
+      ],
+      "source": "https://t.me/farfforija/467",
+      "visible": true
+    },
+    {
+      "id": "review-458",
+      "title": "Детали, которые подружились",
+      "text": "И вновь мои прелестные покупательницы радуют- подбирают комплекты)))",
+      "images": [
+        "/assets/channel-458-0.webp",
+        "/assets/channel-458-1.webp",
+        "/assets/channel-458-2.webp",
+        "/assets/channel-458-3.webp",
+        "/assets/channel-458-4.webp"
+      ],
+      "source": "https://t.me/farfforija/458",
+      "visible": true
+    },
+    {
+      "id": "review-404",
+      "title": "Серьги с характером",
+      "text": "Какие яркие покупательницы и серьги выбирают не простые…",
+      "images": [
+        "/assets/channel-404-0.webp",
+        "/assets/channel-404-1.webp",
+        "/assets/channel-404-2.webp"
+      ],
+      "source": "https://t.me/farfforija/404",
+      "visible": true
+    },
+    {
+      "id": "review-391",
+      "title": "Белые цветы и большой восторг",
+      "text": "Прилетел отзыв) всегда приятно!",
+      "images": [
+        "/assets/channel-391-0.webp"
+      ],
+      "source": "https://t.me/farfforija/391",
+      "visible": true
+    },
+    {
+      "id": "review-274",
+      "title": "Истории покупательниц из Башкирии",
+      "text": "Девушки из Башкирии решили разгуляться, в закупке моих украшений! Спасибо за фото ! И за отзыв!",
+      "images": [
+        "/assets/channel-274-0.webp",
+        "/assets/channel-274-1.webp",
+        "/assets/channel-274-2.webp",
+        "/assets/channel-274-3.webp",
+        "/assets/channel-274-4.webp",
+        "/assets/channel-274-5.webp",
+        "/assets/channel-274-6.webp",
+        "/assets/channel-274-7.webp",
+        "/assets/channel-282-0.webp"
+      ],
+      "source": "https://t.me/farfforija/274",
+      "visible": true
+    },
+    {
+      "id": "review-137",
+      "title": "Серьги на каждый день",
+      "text": "Девочки, всем привет! Сегодня прилетел приятный отзыв и фото! Лена спасибо!",
+      "images": [
+        "/assets/channel-137-0.webp",
+        "/assets/channel-137-2.webp",
+        "/assets/channel-137-1.webp"
+      ],
+      "source": "https://t.me/farfforija/137",
+      "visible": true
+    },
+    {
+      "id": "review-3",
+      "title": "Первая история канала",
+      "text": "Как обычно - худеют с понедельника, так и я решила - начать вести канал с 1 числа декабря( иначе никогда не НАчала бы).Вчера закончилась выставка трехдневная и вот получила фото и отзыв..",
+      "images": [
+        "/assets/channel-3-0.webp"
+      ],
+      "source": "https://t.me/farfforija/3",
+      "visible": true
+    }
+  ],
+  "events": [
+    {
+      "id": "black-white-cinema",
+      "title": "Чёрно-белое кино",
+      "text": "Украшения Ирины Маркиной для проекта «Чёрно-белое кино».",
+      "images": [],
+      "source": "",
+      "date": "",
+      "visible": false
+    },
+    {
+      "id": "event-287",
+      "title": "Весенняя выставка",
+      "text": "Дорогие мои! Всех приглашаю на выставку 18 апреля - вход свободный",
+      "images": [
+        "/assets/channel-287-0.webp"
+      ],
+      "source": "https://t.me/farfforija/287",
+      "date": "2026-04-18",
+      "visible": true
+    },
+    {
+      "id": "event-72",
+      "title": "«Штучки в ручки» в Охта Молле",
+      "text": "Приветик, вот мы уже и в нем… 2026!!! Работаю в ТЦ Охта Молл , приходите наряжаться. Первый этаж ярмарка «Штучки в ручки».",
+      "images": [
+        "/assets/channel-72-0.webp"
+      ],
+      "source": "https://t.me/farfforija/72",
+      "date": "2026-01-03",
+      "visible": true
+    },
+    {
+      "id": "event-62",
+      "title": "Новогодняя ярмарка в Гранд Каньоне",
+      "text": "Второй день новогодней ярмарки в ТЦ Гранд Каньон и конечно елка и колье со стразами! Новый год - без блеска … деньги на ветер\n🤣",
+      "images": [
+        "/assets/channel-62-0.webp",
+        "/assets/channel-62-1.webp",
+        "/assets/channel-62-2.webp"
+      ],
+      "source": "https://t.me/farfforija/62",
+      "date": "2025-12-21",
+      "visible": true
     }
   ]
 }

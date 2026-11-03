@@ -6,7 +6,11 @@ const el = (tag, text, className) => {
   return node;
 };
 let csrf, state, revision, dirty = false, saving = false, view = 'products', selectedId;
-let media = [], chooseImage;
+let media = [], chooseImage, uploading = false;
+function normalizeState() {
+  state.reviews ||= []; state.events ||= [];
+  state.products.forEach(p => p.images = [p.image, ...(p.images || []).filter(url => url !== p.image)]);
+}
 let setupToken = new URLSearchParams(location.hash.slice(1)).get('setup');
 if (setupToken) history.replaceState(null, '', location.pathname);
 let session, fields;
@@ -19,7 +23,7 @@ async function api(path, options = {}) {
   const data = await response.json().catch(() => ({ error: response.status === 413 ? 'Файл слишком большой. Максимум 12 МБ.' : 'Сервер временно недоступен. Попробуйте ещё раз.' }));
   if (!response.ok) {
     if (response.status === 401) notice('Сеанс закончился. Скачайте копию изменений и войдите заново.', true);
-    throw new Error(data.error || 'Не удалось выполнить запрос. Попробуйте ещё раз.');
+    throw Object.assign(new Error(data.error || 'Не удалось выполнить запрос. Попробуйте ещё раз.'), data);
   }
   return data;
 }
@@ -41,7 +45,7 @@ function field(label, value, update, type = 'text', max = 5000) {
   if (!multiline) input.type = type === 'text' ? 'text' : type;
   input.value = value;
   input.maxLength = max;
-  input.addEventListener('input', () => { update(input.value); markDirty(); });
+  input.addEventListener('input', () => { input.removeAttribute('aria-invalid'); update(input.value); markDirty(); });
   wrapper.append(input);
   return wrapper;
 }
@@ -90,6 +94,9 @@ function renderNav() {
     nav.append(b);
   };
   add('products', 'Украшения');
+  add('media', 'Библиотека фото');
+  add('reviews', 'Отзывы и фото покупательниц');
+  add('events', 'СОБытия');
   nav.append(el('span', 'Разделы сайта', 'nav-label'));
   [...new Set(fields.map(f => f.group))].forEach(group => add(group, group));
   add('stories', 'Фотографии первого экрана');
@@ -100,7 +107,7 @@ function renderNav() {
 }
 
 function renderProducts() {
-  heading('Украшения', `${state.products.length} карточек. Добавляйте работы, меняйте порядок и скрывайте то, что пока не нужно показывать.`, button('Добавить украшение', () => {
+  heading('Украшения', `${state.products.length} карточек. Добавьте работу, выберите фото и заполните описание. Черновик можно сохранить скрытым и закончить позже.`, button('Добавить украшение', () => {
     const product = {id: crypto.randomUUID(), name: 'Новое украшение', image: '/assets/bridal.webp', category: 'Серьги', detail: '', description: '', types: ['earrings'], source: '', visible: false};
     state.products.unshift(product); selectedId = product.id; markDirty(); render();
   }, ''));
@@ -123,10 +130,12 @@ function renderProducts() {
     product.name = v;
     const row = list.querySelector('[aria-current=true] span'); row.firstChild.textContent = v;
   }, 'text', 150));
-  editor.append(imageField('Фотография', product.image, v => { product.image = v; list.querySelector('[aria-current=true] img').src = v; }));
+  editor.append(galleryField(product, true));
   editor.append(field('Название категории на карточке', product.category, v => product.category = v, 'text', 80));
   editor.append(field('Короткая подпись', product.detail, v => product.detail = v, 'text', 250));
   editor.append(field('Описание в открытой карточке', product.description, v => product.description = v));
+  ['name','category','detail','description'].forEach((key, i) => editor.querySelectorAll('input,textarea')[i].dataset.field = key);
+  editor.append(el('p', 'Описание нужно для публикации. У скрытого черновика оно может быть пустым. Короткая подпись необязательна.', 'hint'));
   editor.append(field('Ссылка на публикацию, необязательно', product.source, v => product.source = v, 'url', 1000));
   const filters = el('fieldset', undefined, 'fieldset'); filters.append(el('legend', 'В каких подборках показывать'));
   [['earrings','Серьги'],['pendants','Подвески'],['wedding','Для невесты']].forEach(([id, title]) => filters.append(check(title, product.types.includes(id), checked => {
@@ -159,6 +168,76 @@ function renderSection() {
   $('#editor').append(form);
 }
 
+function galleryField(item, product = false) {
+  const wrap = el('div', undefined, 'gallery-editor');
+  wrap.append(el('h3', product ? 'Фотографии украшения' : 'Фотографии'));
+  wrap.append(el('p', 'Первое фото — обложка. Можно добавить до 20 снимков, заменить их и менять порядок.', 'hint'));
+  const images = product ? (item.images ||= [item.image]) : (item.images ||= []);
+  const sync = () => { if (product) item.image = images[0]; markDirty(); render(); };
+  const list = el('div', undefined, 'gallery-editor-grid');
+  images.forEach((url, i) => {
+    const card = el('div', undefined, 'gallery-editor-item');
+    const img = el('img'); img.src = url; img.alt = `Фото ${i + 1}`;
+    card.append(img, el('span', i ? `Фото ${i + 1}` : 'Обложка'));
+    const actions = el('div', undefined, 'actions');
+    actions.append(button('Заменить', () => openMedia(value => { images[i] = value; sync(); })));
+    if (i) actions.append(button('На обложку', () => { images.unshift(images.splice(i, 1)[0]); sync(); }));
+    for (const [direction, text] of [[-1,'←'],[1,'→']]) {
+      const move = button(text, () => { [images[i], images[i + direction]] = [images[i + direction], images[i]]; sync(); });
+      move.setAttribute('aria-label', `Фото ${i + 1}: ${direction < 0 ? 'раньше' : 'позже'}`);
+      move.disabled = i + direction < 0 || i + direction >= images.length; actions.append(move);
+    }
+    const remove = button('Убрать', () => { images.splice(i, 1); sync(); }, 'danger');
+    remove.disabled = product && images.length === 1;
+    actions.append(remove); card.append(actions); list.append(card);
+  });
+  const add = button('Добавить фото', () => openMedia(url => {
+    if (!images.includes(url)) images.push(url); sync();
+  }));
+  add.disabled = images.length >= 20;
+  wrap.append(list, add); return wrap;
+}
+
+function renderEntries(key) {
+  const isEvent = key === 'events';
+  heading(isEvent ? 'СОБытия' : 'Отзывы и фото покупательниц', isEvent ? 'Проекты, выставки и ярмарки. Дату можно оставить пустой.' : 'Фото в украшениях и скриншоты отзывов. Добавляйте только согласованные материалы, без личных контактов.', button(isEvent ? 'Добавить событие' : 'Добавить отзыв', () => {
+    state[key].unshift({id:crypto.randomUUID(),title:isEvent ? 'Новое событие' : 'Новый отзыв',text:'',images:[],source:'',date:'',visible:false}); markDirty(); render();
+  }, ''));
+  if (!state[key].length) $('#editor').append(el('p', 'Добавьте первую запись. Она появится на сайте после включения показа и сохранения.', 'empty'));
+  const list = el('div', undefined, 'section-list');
+  state[key].forEach((item, i) => {
+    const panel = el('article', undefined, 'panel'); panel.dataset.entryId = item.id;
+    panel.append(el('h2', `${i + 1}. ${item.title}`));
+    panel.append(field('Заголовок', item.title, value => item.title = value, 'text', 150));
+    if (isEvent) panel.append(field('Дата, необязательно', item.date || '', value => item.date = value, 'date', 10));
+    panel.append(field(isEvent ? 'Рассказ о событии' : 'Текст или подпись к отзыву', item.text, value => item.text = value, 'text', 10000));
+    panel.append(galleryField(item));
+    panel.append(field('Ссылка на публикацию мастера, необязательно', item.source, value => item.source = value, 'url', 1000));
+    panel.append(check('Показывать на сайте', item.visible, value => item.visible = value));
+    const actions = el('div', undefined, 'actions');
+    for (const [direction, text] of [[-1,'Выше ↑'],[1,'Ниже ↓']]) {
+      const move = button(text, () => { [state[key][i],state[key][i+direction]]=[state[key][i+direction],state[key][i]]; markDirty(); render(); });
+      move.disabled = i + direction < 0 || i + direction >= state[key].length; actions.append(move);
+    }
+    actions.append(button('Удалить запись', () => confirmAction('Удалить запись?', 'После сохранения её можно будет вернуть через историю изменений.', () => { state[key].splice(i,1); markDirty(); render(); }), 'danger'));
+    panel.append(actions); list.append(panel);
+  });
+  $('#editor').append(list);
+}
+
+function renderLibrary() {
+  heading('Библиотека фото', 'Загрузите фотографии с телефона. Они сразу сохранятся в библиотеке: позже можно открыть админку на компьютере и выбрать их для карточек, отзывов или событий.', button('Загрузить фотографии', () => openMedia(null)));
+  const list = el('div', 'Загружаем фотографии…', 'media-grid'); $('#editor').append(list);
+  api('admin/media').then(urls => {
+    if (view !== 'media') return;
+    list.replaceChildren(...urls.map((url, i) => {
+      const card = el('figure'); const img = el('img'); img.src = url; img.alt = `Фото ${i+1}`; img.loading = 'lazy';
+      card.append(img, el('figcaption', `Фото ${i+1}`)); return card;
+    }));
+    if (!urls.length) list.textContent = 'Пока нет фотографий. Загрузите первые снимки.';
+  }).catch(error => list.textContent = error.message);
+}
+
 function renderRepeater(key, title, description, config) {
   heading(title, description, key === 'faq' ? button('Добавить вопрос', () => { state.faq.push({question:'Новый вопрос',answer:''}); markDirty(); render(); }) : undefined);
   const list = el('div', undefined, 'section-list');
@@ -183,7 +262,7 @@ async function renderHistory() {
     versions.forEach(item => {
       const row = el('div', undefined, 'history-row');
       row.append(el('span', `Версия ${item.revision} · ${new Date(item.updated).toLocaleString('ru-RU')}`), button('Восстановить', () => confirmAction('Загрузить эту версию?', 'Несохранённые изменения будут заменены выбранной версией. Сначала можно скачать свою копию.', async () => {
-        try { const data = await api(`admin/history/${item.revision}`); state = data.content; markDirty(); navigate('products'); }
+        try { const data = await api(`admin/history/${item.revision}`); state = data.content; normalizeState(); markDirty(); navigate('products'); }
         catch (error) { notice(error.message, true); }
       })));
       list.append(row);
@@ -217,6 +296,8 @@ function renderAccount() {
 function render() {
   $('#editor').replaceChildren();
   if (view === 'products') renderProducts();
+  else if (view === 'media') renderLibrary();
+  else if (view === 'reviews' || view === 'events') renderEntries(view);
   else if (view === 'stories') renderRepeater('stories', 'Фотографии первого экрана', 'Три истории сменяются вместе с маленькой карточкой. Они редактируются отдельно от галереи.', [['name','Название истории'],['image','Большая фотография','image'],['detailImage','Маленькая фотография','image'],['source','Ссылка на публикацию','url']]);
   else if (view === 'faq') renderRepeater('faq', 'Ответы на вопросы', 'Добавляйте и редактируйте вопросы покупателей.', [['question','Вопрос'],['answer','Ответ']]);
   else if (view === 'steps') renderRepeater('steps', 'Как заказать', 'Три шага от знакомства к заказу.', [['title','Название шага'],['text','Описание']]);
@@ -226,7 +307,7 @@ function render() {
 }
 
 async function enter() {
-  const data = await api('admin/content'); state = data.content; revision = data.revision;
+  const data = await api('admin/content'); state = data.content; normalizeState(); revision = data.revision;
   $('#auth').hidden = true; $('#workspace').hidden = false;
   setupToken = null;
   renderNav(); render(); notice(`Все изменения сохранены · версия ${revision}`);
@@ -241,12 +322,24 @@ $('#save').addEventListener('click', async () => {
     revision = data.revision;
     dirty = JSON.stringify(state) !== snapshot;
     notice(dirty ? 'Версия сохранена. Есть новые несохранённые изменения.' : `Сохранено на сайте · версия ${revision}`);
-  } catch (error) { notice(error.message, true); }
+  } catch (error) {
+    if (error.section) {
+      if (error.section === 'products') selectedId = error.itemId;
+      navigate(error.section);
+      const input = error.field ? document.querySelector(`[data-field="${error.field}"]`) : null;
+      const target = input || [...document.querySelectorAll('[data-entry-id]')].find(node => node.dataset.entryId === error.itemId);
+      if (input) input.setAttribute('aria-invalid', 'true');
+      target?.scrollIntoView({block:'center'}); input?.focus({preventScroll:true});
+    }
+    notice(error.message, true);
+  }
   finally { saving = false; $('#save').disabled = !dirty; $('#save').textContent = 'Сохранить на сайте'; }
 });
 
 async function openMedia(callback) {
-  chooseImage = callback; $('#media-dialog').showModal(); $('#media-status').textContent = 'Загружаем фотографии…';
+  chooseImage = callback; $('#media-title').textContent = callback ? 'Выберите фотографию' : 'Загрузите фотографии';
+  $('#upload').multiple = !callback;
+  $('#media-dialog').showModal(); $('#media-status').textContent = 'Загружаем фотографии…';
   $('#upload').value = '';
   try { media = await api('admin/media'); renderMedia(); $('#media-status').textContent = `${media.length} фотографий`; }
   catch (error) { $('#media-status').textContent = error.message; }
@@ -254,23 +347,34 @@ async function openMedia(callback) {
 
 function renderMedia() {
   $('#media-grid').replaceChildren(...media.map((url, i) => {
-    const b = button('', () => { chooseImage(url); $('#media-dialog').close(); }, '');
+    const b = button('', () => { if (chooseImage) { chooseImage(url); $('#media-dialog').close(); } }, '');
     const img = el('img'); img.src = url; img.alt = `Фото ${i + 1}`; img.loading = 'lazy';
     b.append(img, el('span', url.startsWith('/assets/') ? url.split('/').at(-1) : 'Загруженная фотография')); return b;
   }));
 }
 
 $('#upload').addEventListener('change', async event => {
-  const file = event.target.files[0]; if (!file) return;
-  if (file.size > 12 * 1024 * 1024) { $('#media-status').textContent = 'Файл больше 12 МБ. Выберите фотографию меньшего размера.'; return; }
-  const form = new FormData(); form.append('file', file);
-  $('#upload').disabled = true; $('#media-status').textContent = 'Загружаем и подготавливаем фотографию…';
+  const files = [...event.target.files]; if (!files.length || uploading) return;
+  uploading = true; $('#upload').disabled = true; $('[data-close="media-dialog"]').disabled = true;
+  let count = 0; const errors = [];
   try {
-    const result = await api('admin/upload', {method:'POST',body:form}); media.unshift(result.url); renderMedia();
-    chooseImage(result.url); $('#media-dialog').close(); notice('Фото загружено и выбрано. Сохраните изменения, чтобы оно появилось на сайте.');
-  } catch (error) { $('#media-status').textContent = error.message; }
-  finally { $('#upload').disabled = false; $('#upload').value = ''; }
+    for (const file of files) {
+      $('#media-status').textContent = `Подготавливаем фото ${count + errors.length + 1} из ${files.length}…`;
+      try {
+        if (file.size > 12 * 1024 * 1024) throw new Error('Файл больше 12 МБ.');
+        const form = new FormData(); form.append('file', file);
+        const result = await api('admin/upload', {method:'POST',body:form}); media.unshift(result.url); count++;
+        if (chooseImage) { chooseImage(result.url); $('#media-dialog').close(); notice('Фото выбрано. Сохраните изменения карточки.'); break; }
+      } catch (error) { errors.push(`${file.name}: ${error.message}`); }
+    }
+    renderMedia();
+    $('#media-status').textContent = `Загружено: ${count}. ${errors.join(' ')}`;
+    $('#media-status').classList.toggle('error', errors.length > 0);
+    if (view === 'media') renderLibraryView();
+  } finally { uploading = false; $('#upload').disabled = false; $('#upload').value = ''; $('[data-close="media-dialog"]').disabled = false; }
 });
+function renderLibraryView() { if (view === 'media') render(); }
+$('#media-dialog').addEventListener('cancel', event => { if (uploading) event.preventDefault(); });
 
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => $('#' + b.dataset.close).close()));
 $('#download').addEventListener('click', () => {

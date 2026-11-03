@@ -52,6 +52,87 @@ const scrollBehavior = () => reduceMotion.matches ? 'instant' : 'smooth';
 const arrow = '<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg>';
 const grid = $('#works-grid');
 
+function renderJournal(key) {
+  const items = (pageContent[key] || []).filter(item => item.visible);
+  const section = $('#' + key); section.hidden = !items.length;
+  $$(`a[href="#${key}"]`).forEach(link => link.hidden = !items.length);
+  const target = $('#' + key + '-grid');
+  items.forEach(item => {
+    const card = document.createElement('article'); card.className = 'journal-card'; card.dataset.reveal = '';
+    const open = document.createElement('button'); open.type = 'button'; open.className = 'journal-open';
+    open.setAttribute('aria-label', `Рассмотреть: ${item.title}`);
+    if (item.images?.length) {
+      const photo = document.createElement('div'); photo.className = 'journal-cover';
+      const img = document.createElement('img'); img.src = item.images[0]; img.alt = item.title; img.loading = 'lazy';
+      photo.append(img);
+      if (item.images.length > 1) { const count = document.createElement('span'); count.className = 'photo-count'; count.textContent = `${item.images.length} фото`; photo.append(count); }
+      open.append(photo);
+    }
+    const copy = document.createElement('div'); copy.className = 'journal-card-copy';
+    if (key === 'events' && item.date) { const date = document.createElement('time'); date.dateTime = item.date; date.textContent = eventDate(item.date); copy.append(date); }
+    const title = document.createElement('h3'); title.textContent = item.title; copy.append(title);
+    if (item.text) { const text = document.createElement('p'); text.textContent = item.text; copy.append(text); }
+    const more = document.createElement('span'); more.className = 'text-link'; more.textContent = item.images?.length ? 'Рассмотреть историю ↗' : 'Читать историю ↗'; copy.append(more);
+    open.append(copy); card.append(open); target.append(card);
+    open.addEventListener('click', () => {
+      $('#journal-title').textContent = item.title; $('#journal-text').textContent = item.text;
+      $('#journal-date').textContent = key === 'events' && item.date ? eventDate(item.date) : key === 'reviews' ? 'Фото и отзывы покупательниц' : 'Проект Фарфории';
+      $('#journal-source').hidden = !item.source; $('#journal-source').href = item.source || pageContent.sections.telegram;
+      renderGallery($('#journal-gallery'), item.images || [], item.title);
+      $('#journal-dialog').showModal(); animateDialog($('#journal-dialog'));
+    });
+  });
+}
+const formatDate = date => new Date(date + 'T12:00:00').toLocaleDateString('ru-RU', {day:'numeric',month:'long',year:'numeric'});
+const eventDate = date => `${new Date(date + 'T23:59:59') < new Date() ? 'Из архива · ' : ''}${formatDate(date)}`;
+renderJournal('reviews'); renderJournal('events');
+
+function renderGallery(target, images, title) {
+  target.replaceChildren(); target.hidden = !images.length;
+  if (!images.length) return;
+  let index = 0;
+  const stage = document.createElement('div'); stage.className = 'gallery-stage';
+  const zoom = document.createElement('button'); zoom.type = 'button'; zoom.className = 'gallery-photo'; zoom.setAttribute('aria-label', 'Рассмотреть фотографию крупнее');
+  const image = document.createElement('img'); image.alt = title; zoom.append(image); stage.append(zoom);
+  const error = document.createElement('p'); error.className = 'gallery-error'; error.hidden = true; error.textContent = 'Фото не загрузилось. Попробуйте другой снимок или откройте публикацию мастера.'; stage.append(error);
+  image.addEventListener('error', () => { error.hidden = false; }); image.addEventListener('load', () => { error.hidden = true; });
+  const controls = document.createElement('div'); controls.className = 'gallery-controls'; controls.hidden = images.length < 2;
+  const previous = document.createElement('button'); previous.type = 'button'; previous.textContent = '←'; previous.setAttribute('aria-label','Предыдущая фотография');
+  const status = document.createElement('span'); status.setAttribute('aria-live','polite');
+  const next = document.createElement('button'); next.type = 'button'; next.textContent = '→'; next.setAttribute('aria-label','Следующая фотография');
+  controls.append(previous,status,next);
+  const thumbs = document.createElement('div'); thumbs.className = 'gallery-thumbs'; thumbs.hidden = images.length < 2; thumbs.setAttribute('role','group'); thumbs.setAttribute('aria-label','Фотографии');
+  const buttons = images.map((url,i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label',`Фото ${i+1}`);
+    const img = document.createElement('img'); img.src = url; img.alt = ''; img.loading = 'lazy'; b.append(img); b.addEventListener('click', () => show(i)); thumbs.append(b); return b;
+  });
+  function show(i) {
+    index = (i + images.length) % images.length; error.hidden = true; image.src = images[index]; image.alt = `${title}. Фото ${index+1} из ${images.length}`;
+    status.textContent = `${index+1} / ${images.length}`;
+    buttons.forEach((button,i) => button.setAttribute('aria-pressed',String(i === index)));
+  }
+  previous.addEventListener('click', () => show(index-1)); next.addEventListener('click', () => show(index+1));
+  target.onkeydown = event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); show(index+(event.key === 'ArrowLeft' ? -1 : 1)); } };
+  let touch, swipedAt = 0;
+  stage.addEventListener('touchstart', event => { const t = event.changedTouches[0]; touch = {x:t.clientX,y:t.clientY}; }, {passive:true});
+  stage.addEventListener('touchend', event => {
+    if (!touch) return;
+    const t = event.changedTouches[0]; const dx=t.clientX-touch.x, dy=t.clientY-touch.y;
+    if (Math.abs(dx)>48 && Math.abs(dx)>Math.abs(dy)*1.5) { swipedAt = Date.now(); show(index+(dx<0?1:-1)); } touch=null;
+  }, {passive:true});
+  zoom.addEventListener('click', () => {
+    if (Date.now() - swipedAt < 400) return;
+    $('#photo-large').src = images[index]; $('#photo-large').alt = image.alt;
+    $('#photo-zoom').classList.remove('is-zoomed'); $('#photo-zoom').setAttribute('aria-pressed','false'); $('#photo-zoom').setAttribute('aria-label','Увеличить фотографию');
+    $('#photo-dialog').showModal();
+  });
+  target.append(stage, controls, thumbs); show(0);
+}
+$('#photo-zoom').addEventListener('click', () => {
+  const zoom = $('#photo-zoom'); const active = zoom.classList.toggle('is-zoomed');
+  zoom.setAttribute('aria-pressed',String(active)); zoom.setAttribute('aria-label',active ? 'Уменьшить фотографию' : 'Увеличить фотографию');
+});
+
 works.forEach((work, index) => {
   const card = document.createElement('article');
   card.className = 'work-card';
@@ -254,8 +335,7 @@ const workDialog = $('#work-dialog');
 let selectedWork = works[0];
 $$('[data-work]').forEach(button => button.addEventListener('click', () => {
   selectedWork = works[Number(button.dataset.work)];
-  $('#work-image').src = selectedWork.image;
-  $('#work-image').alt = selectedWork.name;
+  renderGallery($('#work-gallery'), [selectedWork.image, ...(selectedWork.images || []).filter(url => url !== selectedWork.image)], selectedWork.name);
   $('#work-title').textContent = selectedWork.name;
   $('#work-type').textContent = `${selectedWork.category} · ${selectedWork.detail}`;
   $('#work-description').textContent = selectedWork.description;
@@ -301,7 +381,7 @@ const navObserver = new IntersectionObserver(entries => entries.forEach(entry =>
     else link.removeAttribute('aria-current');
   });
 }), { rootMargin: '-20% 0px -60% 0px' });
-['#works', '#maker', '#questions'].forEach(id => navObserver.observe($(id)));
+['#works', '#maker', '#reviews', '#events', '#questions'].forEach(id => navObserver.observe($(id)));
 
 $('#contact-form').addEventListener('submit', event => {
   event.preventDefault();

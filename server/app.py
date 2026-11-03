@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 
 from flask import Flask, abort, g, jsonify, request, send_from_directory
 from PIL import Image, ImageOps, UnidentifiedImageError
+from pillow_heif import register_heif_opener
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -24,6 +25,7 @@ ORIGIN = os.environ.get('MARKINA_ORIGIN', 'http://localhost:8320').rstrip('/')
 SECURE = ORIGIN.startswith('https://')
 COOKIE = 'markina_session'
 Image.MAX_IMAGE_PIXELS = 24_000_000
+register_heif_opener(thumbnails=False)
 app = Flask(__name__, static_folder=None)
 app.config['MAX_CONTENT_LENGTH'] = 13 * 1024 * 1024
 
@@ -62,14 +64,18 @@ def initialize():
 initialize()
 
 
-def fail(message, status=400):
-    abort(status, description=message)
+def fail(message, status=400, **details):
+    try:
+        abort(status, description=message)
+    except HTTPException as error:
+        error.details = details
+        raise
 
 
 @app.errorhandler(HTTPException)
 def http_error(error):
     messages = {401: 'Войдите в админку заново.', 413: 'Файл слишком большой. Максимум 12 МБ.', 429: 'Слишком много попыток. Попробуйте через 15 минут.'}
-    return jsonify(error=messages.get(error.code, error.description)), error.code
+    return jsonify(error=messages.get(error.code, error.description), **getattr(error, 'details', {})), error.code
 
 
 @app.after_request
@@ -224,6 +230,8 @@ def public_content():
     with connect() as db:
         data = latest(db)
     data['content']['products'] = [p for p in data['content']['products'] if p['visible']]
+    for key in ('reviews', 'events'):
+        data['content'][key] = [p for p in data['content'].get(key, []) if p.get('visible')]
     return jsonify(data)
 
 
@@ -235,8 +243,12 @@ def admin_content():
 
 
 def string(value, label, maximum=5000, required=True):
-    if not isinstance(value, str) or len(value) > maximum or (required and not value.strip()):
-        fail(f'Проверьте поле «{label}» (максимум {maximum} символов).')
+    if not isinstance(value, str):
+        fail(f'Заполните поле «{label}» текстом.')
+    if required and not value.strip():
+        fail(f'Заполните поле «{label}».')
+    if len(value) > maximum:
+        fail(f'В поле «{label}» больше {maximum} символов. Сократите текст.')
     return value.strip()
 
 
@@ -263,6 +275,17 @@ def image_url(value):
         if (DATA / value.lstrip('/')).is_file():
             return value
     fail('Выберите фотографию из библиотеки или загрузите новую.')
+
+
+def image_list(value, cover=None):
+    if not isinstance(value, list) or len(value) > 20:
+        fail('Можно добавить до 20 фотографий.')
+    result = list(dict.fromkeys(image_url(item) for item in value))
+    if cover:
+        result = [cover] + [item for item in result if item != cover]
+    if len(result) > 20:
+        fail('Можно добавить до 20 фотографий.')
+    return result
 
 
 def validate_content(data):
@@ -301,7 +324,51 @@ def validate_content(data):
             fail('Выберите хотя бы одну подборку для карточки.')
         if not isinstance(p.get('visible'), bool):
             fail('Проверьте видимость карточки.')
-        clean['products'].append(dict(id=key, name=string(p.get('name'), 'Название', 150), image=image_url(p.get('image')), category=string(p.get('category'), 'Категория', 80), detail=string(p.get('detail'), 'Короткая подпись', 250), description=string(p.get('description'), 'Описание', 5000), source=url(p.get('source'), 'Публикация', True), types=list(dict.fromkeys(types)), visible=p['visible']))
+        row = dict(id=key, types=list(dict.fromkeys(types)), visible=p['visible'])
+        for field, label, maximum, required in [('name', 'Название', 150, True), ('category', 'Категория', 80, True), ('detail', 'Короткая подпись', 250, False), ('description', 'Описание', 5000, p['visible'])]:
+            try:
+                row[field] = string(p.get(field, ''), label, maximum, required)
+            except HTTPException as error:
+                error.description = f'Карточка «{str(p.get("name", "Без названия"))[:150]}»: {error.description}'
+                error.details = dict(section='products', itemId=key, field=field)
+                raise
+        row['image'] = image_url(p.get('image'))
+        row['images'] = image_list(p.get('images', []), row['image'])
+        row['source'] = url(p.get('source'), 'Публикация', True)
+        clean['products'].append(row)
+    for collection in ('reviews', 'events'):
+        items = data.get(collection, [])
+        if not isinstance(items, list) or len(items) > 100:
+            fail('В разделе может быть до 100 записей.')
+        clean[collection] = []
+        used = set()
+        for item in items:
+            if not isinstance(item, dict):
+                fail('Некорректная запись раздела.')
+            key = string(item.get('id'), 'ID', 80)
+            if not re.fullmatch(r'[a-z0-9-]+', key) or key in used:
+                fail('Повторяющийся или некорректный ID записи.')
+            used.add(key)
+            if not isinstance(item.get('visible'), bool):
+                fail('Проверьте видимость записи.')
+            try:
+                row = dict(id=key, title=string(item.get('title'), 'Заголовок', 150), text=string(item.get('text', ''), 'Текст', 10000, False), images=image_list(item.get('images', [])), source=url(item.get('source', ''), 'Публикация', True), visible=item['visible'])
+                if item['visible'] and not row['images'] and not row['text']:
+                    fail('Добавьте фотографию или текст перед публикацией.')
+                if collection == 'events':
+                    date = string(item.get('date', ''), 'Дата', 10, False)
+                    if date:
+                        from datetime import date as calendar_date
+                        try:
+                            calendar_date.fromisoformat(date)
+                        except ValueError:
+                            fail('Укажите дату в формате ГГГГ-ММ-ДД.')
+                    row['date'] = date
+            except HTTPException as error:
+                error.description = f'Запись «{str(item.get("title", "Без названия"))[:150]}»: {error.description}'
+                error.details = dict(section=collection, itemId=key)
+                raise
+            clean[collection].append(row)
     for key, count, keys in [('faq', 30, ('question', 'answer')), ('steps', 3, ('title', 'text')), ('stories', 3, ('name', 'image', 'detailImage', 'source'))]:
         items = data.get(key)
         if not isinstance(items, list) or not 1 <= len(items) <= count or (key != 'faq' and len(items) != count):
@@ -321,11 +388,21 @@ def validate_content(data):
 @private
 def save_content():
     data = body()
-    content = validate_content(data.get('content'))
     with connect() as db:
         db.execute('BEGIN IMMEDIATE')
-        if latest(db)['revision'] != data.get('revision'):
+        current = latest(db)
+        if current['revision'] != data.get('revision'):
             fail('Кто-то уже изменил сайт. Скачайте свою копию, затем обновите страницу перед повторным редактированием.', 409)
+        document = data.get('content')
+        # An older open admin tab must not silently erase the added galleries.
+        if isinstance(document, dict):
+            for key in ('reviews', 'events'):
+                document.setdefault(key, current['content'].get(key, []))
+            previous = {p['id']: p for p in current['content']['products']}
+            for product in document.get('products', []) if isinstance(document.get('products'), list) else []:
+                if isinstance(product, dict) and 'images' not in product:
+                    product['images'] = previous.get(product.get('id'), {}).get('images', [])
+        content = validate_content(document)
         db.execute('INSERT INTO revisions(document) VALUES (?)', (json.dumps(content, ensure_ascii=False),))
         db.execute('DELETE FROM revisions WHERE id NOT IN (SELECT id FROM revisions ORDER BY id DESC LIMIT 100)')
         return jsonify(latest(db))
@@ -362,15 +439,15 @@ def media():
 def upload():
     file = request.files.get('file')
     if not file:
-        fail('Выберите JPEG, PNG или WebP.')
+        fail('Выберите JPEG, PNG, WebP или HEIC с iPhone.')
     file.stream.seek(0, 2)
     if file.stream.tell() > 12 * 1024 * 1024:
         fail('Файл слишком большой. Максимум 12 МБ.', 413)
     file.stream.seek(0)
     try:
         with Image.open(file.stream) as source:
-            if source.format not in ('JPEG', 'PNG', 'WEBP'):
-                fail('Поддерживаются только JPEG, PNG и WebP.')
+            if source.format not in ('JPEG', 'PNG', 'WEBP', 'HEIF'):
+                fail('Поддерживаются JPEG, PNG, WebP и HEIC/HEIF.')
             if source.width * source.height > Image.MAX_IMAGE_PIXELS:
                 fail('Фотография слишком большая. Максимум 24 мегапикселя.')
             picture = ImageOps.exif_transpose(source)
@@ -378,8 +455,8 @@ def upload():
             picture = picture.convert('RGBA' if 'A' in picture.getbands() else 'RGB')
             name = secrets.token_hex(16) + '.webp'
             picture.save(DATA / 'uploads' / name, 'WEBP', quality=88)
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
-        fail('Не удалось прочитать фотографию. Попробуйте другой JPEG, PNG или WebP.')
+    except (UnidentifiedImageError, OSError, ValueError, RuntimeError, Image.DecompressionBombError):
+        fail('Не удалось прочитать фотографию. Попробуйте другой JPEG, PNG, WebP или HEIC.')
     return jsonify(url='/uploads/' + name), 201
 
 
