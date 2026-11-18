@@ -40,8 +40,6 @@ pageContent.steps.forEach((step, index) => {
 pageContent.stories.forEach((story, index) => {
   const image = $(`[data-slide-image="${index}"]`);
   image.src = story.image; image.alt = story.name;
-  const detail = $(`[data-detail-image="${index}"]`);
-  detail.src = story.detailImage; detail.alt = story.name;
   $(`[data-slide="${index}"]`).setAttribute('aria-label', story.name);
 });
 $('[data-filter="all"] span').textContent = works.length;
@@ -271,8 +269,6 @@ $$('[data-filter]').forEach(button => button.addEventListener('click', () => {
   $('#empty-state').hidden = $$('.work-card').some(card => !card.hidden);
 }));
 
-// The photograph is the story: an outfit and its corresponding piece change together.
-// The page background never moves. Only the photo layers crossfade inside their clips.
 const stories = pageContent.stories;
 let currentStory = 0;
 let storyTimer;
@@ -303,19 +299,11 @@ function showStory(index) {
     image.classList.toggle('is-current', i === index);
     image.setAttribute('aria-hidden', String(i !== index));
   });
-  $$('[data-detail-image]').forEach((image, i) => {
-    image.classList.toggle('is-current', i === index);
-    image.setAttribute('aria-hidden', String(i !== index));
-  });
   $$('[data-slide]').forEach((button, i) => {
     button.classList.toggle('is-current', i === index);
     button.setAttribute('aria-pressed', String(i === index));
   });
-  const work = stories[index];
-  $('#hero-work-name').textContent = work.name;
   $('#slide-current').textContent = `0${index + 1}`;
-  $('#hero-publication').href = work.source;
-  $('#hero-publication').setAttribute('aria-label', `Публикация мастера: ${work.name}`);
 }
 new IntersectionObserver(entries => {
   stageVisible = entries[0].isIntersecting;
