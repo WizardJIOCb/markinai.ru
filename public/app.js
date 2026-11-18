@@ -219,7 +219,7 @@ works.forEach((work, index) => {
   card.dataset.reveal = '';
   card.dataset.types = work.types.join(' ');
   card.style.setProperty('--reveal-delay', `${index % 3 * 80}ms`);
-  card.innerHTML = `<button type="button" class="work-photo media" data-work="${index}" aria-label="Рассмотреть: ${escapeHTML(work.name)}"><img src="${escapeHTML(work.image)}" alt="${escapeHTML(work.name)}, украшение Ирины Маркиной" loading="lazy" width="600" height="750"><span class="image-fallback" hidden>Фото не загрузилось. Откройте карточку, чтобы перейти к публикации.</span><span class="work-category">${escapeHTML(work.category)}</span><span class="work-open">Подробнее${arrow}</span></button><div class="work-info"><div><h3>${escapeHTML(work.name)}</h3><p>${escapeHTML(work.detail)}</p></div><span>${String(index + 1).padStart(2, '0')}</span></div>`;
+  card.innerHTML = `<button type="button" class="work-photo media" data-work="${index}" aria-label="Рассмотреть: ${escapeHTML(work.name)}"><img src="${escapeHTML(work.image)}" alt="${escapeHTML(work.name)}, украшение Ирины Маркиной" loading="lazy" width="600" height="750"><span class="image-fallback" hidden>Фото не загрузилось. Откройте карточку, чтобы перейти к публикации.</span><span class="work-category">${escapeHTML(work.category)}</span></button><div class="work-info"><div><h3>${escapeHTML(work.name)}</h3><p>${escapeHTML(work.detail)}</p><button type="button" class="work-open text-link" data-work="${index}" aria-label="Подробнее: ${escapeHTML(work.name)}">Подробнее${arrow}</button></div><span>${String(index + 1).padStart(2, '0')}</span></div>`;
   addPreviewControls(card.querySelector('.work-photo'), workPhotos[index], work.name);
   grid.append(card);
 });
@@ -419,8 +419,10 @@ $$('dialog').forEach(dialog => dialog.addEventListener('click', event => {
 const workDialog = $('#work-dialog');
 let selectedWork = works[0];
 $$('[data-work]').forEach(button => button.addEventListener('click', () => {
-  selectedWork = works[Number(button.dataset.work)];
-  renderGallery($('#work-gallery'), workPhotos[Number(button.dataset.work)], selectedWork.name, Number(button.dataset.photoIndex || 0));
+  const workIndex = Number(button.dataset.work);
+  const photo = button.closest('.work-card').querySelector('.work-photo');
+  selectedWork = works[workIndex];
+  renderGallery($('#work-gallery'), workPhotos[workIndex], selectedWork.name, Number(photo.dataset.photoIndex || 0));
   $('#work-title').textContent = selectedWork.name;
   $('#work-type').textContent = `${selectedWork.category} · ${selectedWork.detail}`;
   $('#work-description').textContent = selectedWork.description;
