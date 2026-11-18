@@ -81,6 +81,20 @@ class CMSTest(unittest.TestCase):
         self.assertEqual(self.client.get('/api/admin/history/1').json['content'],self.seed)
         self.assertEqual(self.client.get('/api/content').json['content']['sections']['heroTitle'],'Новый заголовок\nВторая строка')
 
+    def test_extra_looks_survive_legacy_saves_and_can_be_removed(self):
+        self.login()
+        doc = copy.deepcopy(self.seed)
+        looks = [{'image': '/assets/look2.webp', 'caption': 'Мой образ'}]
+        doc['extraLooks'] = looks
+        self.assertEqual(self.save(doc).status_code, 200)
+        self.assertEqual(self.save(self.seed, 2).status_code, 200)
+        self.assertEqual(self.client.get('/api/content').json['content']['extraLooks'], looks)
+        doc['extraLooks'] = [{'image': '/missing.webp'}]
+        self.assertEqual(self.save(doc, 3).status_code, 400)
+        doc['extraLooks'] = []
+        self.assertEqual(self.save(doc, 3).status_code, 200)
+        self.assertEqual(self.client.get('/api/content').json['content']['extraLooks'], [])
+
     def test_concurrent_edit_does_not_overwrite(self):
         self.login()
         self.assertEqual(self.save(self.seed).status_code,200)

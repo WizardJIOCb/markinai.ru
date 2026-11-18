@@ -308,6 +308,17 @@ def validate_content(data):
         else:
             value = string(value, f['label'])
         clean['sections'][f['id']] = value
+    extra_looks = data.get('extraLooks', [])
+    if not isinstance(extra_looks, list):
+        fail('Проверьте дополнительные фотографии образов.')
+    clean['extraLooks'] = []
+    for look in extra_looks:
+        if not isinstance(look, dict):
+            fail('Проверьте фотографию и подпись образа.')
+        clean['extraLooks'].append({
+            'image': image_url(look.get('image')),
+            'caption': string(look.get('caption', ''), 'Подпись образа', 250, False),
+        })
     products = data.get('products')
     if not isinstance(products, list) or len(products) > 300:
         fail('В галерее может быть до 300 карточек.')
@@ -396,7 +407,7 @@ def save_content():
         document = data.get('content')
         # An older open admin tab must not silently erase the added galleries.
         if isinstance(document, dict):
-            for key in ('reviews', 'events'):
+            for key in ('reviews', 'events', 'extraLooks'):
                 document.setdefault(key, current['content'].get(key, []))
             previous = {p['id']: p for p in current['content']['products']}
             for product in document.get('products', []) if isinstance(document.get('products'), list) else []:
