@@ -52,6 +52,83 @@ const scrollBehavior = () => reduceMotion.matches ? 'instant' : 'smooth';
 const arrow = '<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg>';
 const grid = $('#works-grid');
 
+const looksGrid = $('.looks-grid');
+for (const look of pageContent.extraLooks || []) {
+  const figure = looksGrid.firstElementChild.cloneNode(true);
+  const image = figure.querySelector('img');
+  image.src = look.image;
+  image.alt = look.caption || 'Образ с украшениями Фарфории';
+  const caption = figure.querySelector('figcaption');
+  caption.textContent = look.caption;
+  caption.hidden = !look.caption;
+  looksGrid.append(figure);
+}
+
+function enablePhotoSwipe(button, move) {
+  let start;
+  button.classList.add('swipe-photo');
+  button.addEventListener('touchstart', event => {
+    start = event.touches.length === 1 ? event.touches[0] : null;
+  }, {passive: true});
+  button.addEventListener('touchmove', event => {
+    if (!start || !event.cancelable) return;
+    const touch = event.touches[0];
+    const distance = Math.abs(touch.clientX - start.clientX);
+    if (distance >= 6 && distance > Math.abs(touch.clientY - start.clientY) * 1.5) {
+      event.preventDefault();
+    }
+  }, {passive: false});
+  button.addEventListener('touchcancel', () => { start = null; });
+  button.addEventListener('touchend', event => {
+    if (!start) return;
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - start.clientX;
+    const dy = touch.clientY - start.clientY;
+    start = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (event.cancelable) event.preventDefault();
+      move(dx < 0 ? 1 : -1);
+    }
+  }, {passive: false});
+}
+
+function addPreviewControls(photo, images, title) {
+  if (images.length < 2) return;
+  const frame = document.createElement('div');
+  frame.className = 'preview-frame';
+  photo.replaceWith(frame);
+  frame.append(photo);
+  const image = photo.querySelector('img');
+  const controls = document.createElement('div');
+  controls.className = 'preview-controls';
+  const status = document.createElement('span');
+  status.setAttribute('aria-live', 'polite');
+  status.textContent = `1 / ${images.length}`;
+  function move(step) {
+    const index = (Number(photo.dataset.photoIndex || 0) + step + images.length) % images.length;
+    photo.dataset.photoIndex = index;
+    image.src = images[index];
+    image.alt = `${title}. Фото ${index + 1} из ${images.length}`;
+    status.textContent = `${index + 1} / ${images.length}`;
+  }
+  function control(label, symbol, step) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = symbol;
+    button.setAttribute('aria-label', `${label} · ${title}`);
+    button.addEventListener('click', () => move(step));
+    return button;
+  }
+  controls.append(control('Предыдущее фото', '‹', -1), status, control('Следующее фото', '›', 1));
+  frame.append(controls);
+  enablePhotoSwipe(photo, move);
+  frame.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    move(event.key === 'ArrowLeft' ? -1 : 1);
+  });
+}
+
 function renderJournal(key) {
   const items = (pageContent[key] || []).filter(item => item.visible);
   const section = $('#' + key); section.hidden = !items.length;
@@ -61,12 +138,19 @@ function renderJournal(key) {
     const card = document.createElement('article'); card.className = 'journal-card'; card.dataset.reveal = '';
     const open = document.createElement('button'); open.type = 'button'; open.className = 'journal-open';
     open.setAttribute('aria-label', `Рассмотреть: ${item.title}`);
+    let preview;
     if (item.images?.length) {
       const photo = document.createElement('div'); photo.className = 'journal-cover';
       const img = document.createElement('img'); img.src = item.images[0]; img.alt = item.title; img.loading = 'lazy';
       photo.append(img);
-      if (item.images.length > 1) { const count = document.createElement('span'); count.className = 'photo-count'; count.textContent = `${item.images.length} фото`; photo.append(count); }
-      open.append(photo);
+      if (item.images.length > 1) {
+        preview = open.cloneNode(false);
+        preview.append(photo);
+        card.append(preview);
+        addPreviewControls(preview, item.images, item.title);
+      } else {
+        open.append(photo);
+      }
     }
     const copy = document.createElement('div'); copy.className = 'journal-card-copy';
     if (key === 'events' && item.date) { const date = document.createElement('time'); date.dateTime = item.date; date.textContent = eventDate(item.date); copy.append(date); }
@@ -74,20 +158,22 @@ function renderJournal(key) {
     if (item.text) { const text = document.createElement('p'); text.textContent = item.text; copy.append(text); }
     const more = document.createElement('span'); more.className = 'text-link'; more.textContent = item.images?.length ? 'Рассмотреть историю ↗' : 'Читать историю ↗'; copy.append(more);
     open.append(copy); card.append(open); target.append(card);
-    open.addEventListener('click', () => {
+    function openStory() {
       $('#journal-title').textContent = item.title; $('#journal-text').textContent = item.text;
       $('#journal-date').textContent = key === 'events' && item.date ? eventDate(item.date) : key === 'reviews' ? 'Фото и отзывы покупательниц' : 'Проект Фарфории';
       $('#journal-source').hidden = !item.source; $('#journal-source').href = item.source || pageContent.sections.telegram;
-      renderGallery($('#journal-gallery'), item.images || [], item.title);
+      renderGallery($('#journal-gallery'), item.images || [], item.title, Number(preview?.dataset.photoIndex || 0));
       $('#journal-dialog').showModal(); animateDialog($('#journal-dialog'));
-    });
+    }
+    open.addEventListener('click', openStory);
+    preview?.addEventListener('click', openStory);
   });
 }
 const formatDate = date => new Date(date + 'T12:00:00').toLocaleDateString('ru-RU', {day:'numeric',month:'long',year:'numeric'});
 const eventDate = date => `${new Date(date + 'T23:59:59') < new Date() ? 'Из архива · ' : ''}${formatDate(date)}`;
 renderJournal('reviews'); renderJournal('events');
 
-function renderGallery(target, images, title) {
+function renderGallery(target, images, title, initialIndex = 0) {
   target.replaceChildren(); target.hidden = !images.length;
   if (!images.length) return;
   let index = 0;
@@ -113,26 +199,20 @@ function renderGallery(target, images, title) {
   }
   previous.addEventListener('click', () => show(index-1)); next.addEventListener('click', () => show(index+1));
   target.onkeydown = event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); show(index+(event.key === 'ArrowLeft' ? -1 : 1)); } };
-  let touch, swipedAt = 0;
-  stage.addEventListener('touchstart', event => { const t = event.changedTouches[0]; touch = {x:t.clientX,y:t.clientY}; }, {passive:true});
-  stage.addEventListener('touchend', event => {
-    if (!touch) return;
-    const t = event.changedTouches[0]; const dx=t.clientX-touch.x, dy=t.clientY-touch.y;
-    if (Math.abs(dx)>48 && Math.abs(dx)>Math.abs(dy)*1.5) { swipedAt = Date.now(); show(index+(dx<0?1:-1)); } touch=null;
-  }, {passive:true});
+  if (images.length > 1) enablePhotoSwipe(zoom, step => show(index + step));
   zoom.addEventListener('click', () => {
-    if (Date.now() - swipedAt < 400) return;
     $('#photo-large').src = images[index]; $('#photo-large').alt = image.alt;
     $('#photo-zoom').classList.remove('is-zoomed'); $('#photo-zoom').setAttribute('aria-pressed','false'); $('#photo-zoom').setAttribute('aria-label','Увеличить фотографию');
     $('#photo-dialog').showModal();
   });
-  target.append(stage, controls, thumbs); show(0);
+  target.append(stage, controls, thumbs); show(initialIndex);
 }
 $('#photo-zoom').addEventListener('click', () => {
   const zoom = $('#photo-zoom'); const active = zoom.classList.toggle('is-zoomed');
   zoom.setAttribute('aria-pressed',String(active)); zoom.setAttribute('aria-label',active ? 'Уменьшить фотографию' : 'Увеличить фотографию');
 });
 
+const workPhotos = works.map(work => [...new Set([work.image, ...(work.images || [])])]);
 works.forEach((work, index) => {
   const card = document.createElement('article');
   card.className = 'work-card';
@@ -140,19 +220,24 @@ works.forEach((work, index) => {
   card.dataset.types = work.types.join(' ');
   card.style.setProperty('--reveal-delay', `${index % 3 * 80}ms`);
   card.innerHTML = `<button type="button" class="work-photo media" data-work="${index}" aria-label="Рассмотреть: ${escapeHTML(work.name)}"><img src="${escapeHTML(work.image)}" alt="${escapeHTML(work.name)}, украшение Ирины Маркиной" loading="lazy" width="600" height="750"><span class="image-fallback" hidden>Фото не загрузилось. Откройте карточку, чтобы перейти к публикации.</span><span class="work-category">${escapeHTML(work.category)}</span><span class="work-open">Подробнее${arrow}</span></button><div class="work-info"><div><h3>${escapeHTML(work.name)}</h3><p>${escapeHTML(work.detail)}</p></div><span>${String(index + 1).padStart(2, '0')}</span></div>`;
+  addPreviewControls(card.querySelector('.work-photo'), workPhotos[index], work.name);
   grid.append(card);
 });
 
 $$('.media img').forEach(img => {
   const media = img.closest('.media');
-  const loaded = () => media.classList.add('is-loaded');
+  const fallback = media.querySelector('.image-fallback');
+  const loaded = () => {
+    media.classList.add('is-loaded');
+    img.hidden = false;
+    if (fallback) fallback.hidden = true;
+  };
   const failed = () => {
     img.hidden = true;
-    const fallback = media.querySelector('.image-fallback');
     if (fallback) fallback.hidden = false;
   };
-  img.addEventListener('load', loaded, { once: true });
-  img.addEventListener('error', failed, { once: true });
+  img.addEventListener('load', loaded);
+  img.addEventListener('error', failed);
   if (img.complete) img.naturalWidth > 0 ? loaded() : failed();
 });
 
@@ -335,7 +420,7 @@ const workDialog = $('#work-dialog');
 let selectedWork = works[0];
 $$('[data-work]').forEach(button => button.addEventListener('click', () => {
   selectedWork = works[Number(button.dataset.work)];
-  renderGallery($('#work-gallery'), [selectedWork.image, ...(selectedWork.images || []).filter(url => url !== selectedWork.image)], selectedWork.name);
+  renderGallery($('#work-gallery'), workPhotos[Number(button.dataset.work)], selectedWork.name, Number(button.dataset.photoIndex || 0));
   $('#work-title').textContent = selectedWork.name;
   $('#work-type').textContent = `${selectedWork.category} · ${selectedWork.detail}`;
   $('#work-description').textContent = selectedWork.description;

@@ -9,6 +9,7 @@ let csrf, state, revision, dirty = false, saving = false, view = 'products', sel
 let media = [], chooseImage, uploading = false;
 function normalizeState() {
   state.reviews ||= []; state.events ||= [];
+  state.extraLooks ||= [];
   state.products.forEach(p => p.images = [p.image, ...(p.images || []).filter(url => url !== p.image)]);
 }
 let setupToken = new URLSearchParams(location.hash.slice(1)).get('setup');
@@ -166,6 +167,34 @@ function renderSection() {
     form.append(f.type === 'image' ? imageField(f.label, state.sections[f.id], update) : field(f.label, state.sections[f.id], update, f.type === 'url' ? 'url' : f.type === 'phone' ? 'tel' : 'text'));
   });
   $('#editor').append(form);
+  if (view === 'Украшения в жизни') renderExtraLooks();
+}
+
+function renderExtraLooks() {
+  const looks = state.extraLooks;
+  const list = el('div', undefined, 'section-list');
+  const refresh = () => { markDirty(); render(); };
+  looks.forEach((look, i) => {
+    const panel = el('div', undefined, 'panel');
+    panel.append(imageField(`Дополнительное фото ${i + 1}`, look.image, url => look.image = url));
+    panel.append(field('Подпись, необязательно', look.caption, value => look.caption = value, 'text', 250));
+    const actions = el('div', undefined, 'actions');
+    for (const [step, label] of [[-1, 'Выше ↑'], [1, 'Ниже ↓']]) {
+      const move = button(label, () => {
+        [looks[i], looks[i + step]] = [looks[i + step], look];
+        refresh();
+      });
+      move.disabled = i + step < 0 || i + step >= looks.length;
+      actions.append(move);
+    }
+    actions.append(button('Убрать фото', () => { looks.splice(i, 1); refresh(); }, 'danger'));
+    panel.append(actions); list.append(panel);
+  });
+  list.append(button('Добавить фото образа', () => openMedia(url => {
+    looks.push({image: url, caption: ''});
+    refresh();
+  }, true)));
+  $('#editor').append(list);
 }
 
 function galleryField(item, product = false) {
@@ -336,9 +365,9 @@ $('#save').addEventListener('click', async () => {
   finally { saving = false; $('#save').disabled = !dirty; $('#save').textContent = 'Сохранить на сайте'; }
 });
 
-async function openMedia(callback) {
+async function openMedia(callback, multiple = !callback) {
   chooseImage = callback; $('#media-title').textContent = callback ? 'Выберите фотографию' : 'Загрузите фотографии';
-  $('#upload').multiple = !callback;
+  $('#upload').multiple = multiple;
   $('#media-dialog').showModal(); $('#media-status').textContent = 'Загружаем фотографии…';
   $('#upload').value = '';
   try { media = await api('admin/media'); renderMedia(); $('#media-status').textContent = `${media.length} фотографий`; }
@@ -347,7 +376,7 @@ async function openMedia(callback) {
 
 function renderMedia() {
   $('#media-grid').replaceChildren(...media.map((url, i) => {
-    const b = button('', () => { if (chooseImage) { chooseImage(url); $('#media-dialog').close(); } }, '');
+    const b = button('', () => { if (chooseImage && !uploading) { chooseImage(url); $('#media-dialog').close(); } }, '');
     const img = el('img'); img.src = url; img.alt = `Фото ${i + 1}`; img.loading = 'lazy';
     b.append(img, el('span', url.startsWith('/assets/') ? url.split('/').at(-1) : 'Загруженная фотография')); return b;
   }));
@@ -364,12 +393,16 @@ $('#upload').addEventListener('change', async event => {
         if (file.size > 12 * 1024 * 1024) throw new Error('Файл больше 12 МБ.');
         const form = new FormData(); form.append('file', file);
         const result = await api('admin/upload', {method:'POST',body:form}); media.unshift(result.url); count++;
-        if (chooseImage) { chooseImage(result.url); $('#media-dialog').close(); notice('Фото выбрано. Сохраните изменения карточки.'); break; }
+        if (chooseImage) chooseImage(result.url);
       } catch (error) { errors.push(`${file.name}: ${error.message}`); }
     }
     renderMedia();
     $('#media-status').textContent = `Загружено: ${count}. ${errors.join(' ')}`;
     $('#media-status').classList.toggle('error', errors.length > 0);
+    if (chooseImage && count && !errors.length) {
+      $('#media-dialog').close();
+      notice('Фото выбраны. Нажмите «Сохранить на сайте».');
+    }
     if (view === 'media') renderLibraryView();
   } finally { uploading = false; $('#upload').disabled = false; $('#upload').value = ''; $('[data-close="media-dialog"]').disabled = false; }
 });
