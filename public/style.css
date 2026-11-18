@@ -32,6 +32,7 @@ button:active, a:active { transform: translateY(1px) scale(.98); }
 .icon { width: 24px; height: 24px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 16; stroke-linecap: round; stroke-linejoin: round; }
 .container { width: calc(100% - var(--gutter) * 2); max-width: 1440px; margin-inline: auto; }
 .section { padding-block: var(--s96); }
+.works { padding-block-start: var(--s64); }
 .eyebrow { display: flex; gap: var(--s8); align-items: center; font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: .025em; }
 .status-dot { width: 8px; height: 8px; display: inline-block; border-radius: 50%; background: var(--accent); flex: 0 0 auto; }
 .skip-link { position: fixed; top: 16px; left: 16px; padding: var(--s12) var(--s16); background: var(--ink); color: white; transform: translateY(-160%); z-index: 100; border-radius: 8px; }
@@ -247,6 +248,7 @@ dialog.is-closing::backdrop { opacity: 0; }
   html { scroll-padding-top: 96px; }
   h2 { font-size: 36px; line-height: 40px; }
   .section { padding-block: var(--s64); }
+  .works { padding-block-start: var(--s48); }
   .site-header { top: 12px; padding-inline: var(--s12); }
   .nav-bar { width: 100%; justify-content: space-between; padding-left: var(--s16); gap: var(--s12); }
   .wordmark { font-size: 20px; line-height: 28px; }
